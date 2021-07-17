@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import collections
 import hashlib
 import random
@@ -56,7 +54,7 @@ def inverse_mod(k, p):
     return x % p
 
 
-# Functions that work on curve points #########################################
+# 椭圆函数上基本运算 #########################################
 def is_on_curve(point):
     """Returns True if the given point lies on the elliptic curve."""
     if point is None:
@@ -65,7 +63,6 @@ def is_on_curve(point):
 
     x, y = point
     return (y * y - x * x * x - curve.a * x - curve.b) % curve.p == 0
-
 
 def point_neg(point):
     """Returns -point."""
