@@ -5,6 +5,23 @@ def hello():
     print('hello,world')
 global k_leak
 
+EllipticCurve = collections.namedtuple('EllipticCurve', 'name p a b g n h')
+curve = EllipticCurve(
+    'secp256k1',
+    # Field characteristic.
+    p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f,
+    # Curve coefficients.
+    a=0,
+    b=7,
+    # Base point.
+    g=(0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
+       0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8),
+    # Subgroup order.
+    n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141,
+    # Subgroup cofactor.
+    h=1,
+)
+
 # Modular arithmetic ##########################################################
 def inverse_mod(k, p):
     """Returns the inverse of k modulo p.
@@ -18,7 +35,7 @@ def inverse_mod(k, p):
         # k ** -1 = p - (-k) ** -1  (mod p)
         return p - inverse_mod(-k, p)
 
-    # Extended Euclidean algorithm.
+    # 扩展欧几里得算法求模逆
     s, old_s = 0, 1
     t, old_t = 1, 0
     r, old_r = p, k
@@ -37,7 +54,7 @@ def inverse_mod(k, p):
     return x % p
 
 
-# Functions that work on curve points #########################################
+# 椭圆曲线上运算 #########################################
 def is_on_curve(point):
     """Returns True if the given point lies on the elliptic curve."""
     if point is None:
