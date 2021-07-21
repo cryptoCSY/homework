@@ -54,7 +54,7 @@ def inverse_mod(k, p):
     return x % p
 
 
-# 椭圆函数上基本运算 #########################################
+# Functions that work on curve points #########################################
 def is_on_curve(point):
     """Returns True if the given point lies on the elliptic curve."""
     if point is None:
@@ -63,6 +63,7 @@ def is_on_curve(point):
 
     x, y = point
     return (y * y - x * x * x - curve.a * x - curve.b) % curve.p == 0
+
 
 def point_neg(point):
     """Returns -point."""
@@ -200,7 +201,7 @@ if __name__ == "__main__":
     print("Private key:", hex(d))
     print("Public key: (0x{:x}, 0x{:x})".format(*P))
 
-    msg = b'Hello!'
+    msg = b'How u doing?'
     signature = sign_message(d, msg)
 
     print()
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     print('泄露的k = {}'.format(hex(k_leak)))
     
     e = hash_message(msg)
-    r = signature[0];s=signature[1]
+    r,s = signature
     d_guess = (inverse_mod(r, curve.n)*(k_leak*s - e))%curve.n
     print('猜测密钥d = {0}'.format(hex(d_guess)))
 
@@ -272,7 +273,6 @@ if __name__ == "__main__":
     
     #Bob恢复Alice的密钥
     d_guess_Alice = ((s_1*e_2-s_2*e_1+s_1*r_1*d2)*inverse_mod(s_2*r_1,curve.n)) % curve.n
-    print('Bob恢复Alice的私钥:',d_guess_Alice)
+    print('Bob恢复Alice的私钥:',hex(d_guess_Alice))
     if d_guess_Alice == d1:print('Success!')
     else:print('Failed.')
-    
