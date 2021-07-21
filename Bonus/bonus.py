@@ -1,7 +1,40 @@
 import binascii
 import math
 import random
-import MyECDSA
+from MyECDSA import curve,inverse_mod,is_on_curve,point_neg,point_add,scalar_mult,make_keypair,hash_message,sign_message,verify_signature
+
+def Ponit2Standard(P):  #将点转化成标准形式
+    P_standard = '04'+hex(P[0])[2:]+hex(P[1])[2:]
+
+def EC_Compress(P): #点压缩
+    x = P[1]
+    if x%2 == 0:
+        compressed_point = '02'+hex(P[0])[2:]
+        return compressed_point
+    elif x%2 == 1:
+        compressed_point = '03'+hex(P[0])[2:]
+        return compressed_point
+
+#Cipolla Algo    
+def EC_Uncompress(compressed_point): #点解压缩
+    p_hex = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F'
+    p = int(p_hex, 16)
+    x_hex = compressed_point[2:66]
+    x = int(x_hex, 16)
+    prefix = compressed_point[0:2]
+    
+    y_square = (pow(x, 3, p)  + 7) % p
+    y_square_square_root = pow(y_square, (p+1)//4, p)
+    if (prefix == "02" and y_square_square_root & 1) or (prefix == "03" and not y_square_square_root & 1):
+        y = (-y_square_square_root) % p
+    else:
+        y = y_square_square_root
+
+    computed_y_hex = format(y, '064x')
+    computed_uncompressed_key = "04" + x_hex + computed_y_hex
+
+    return computed_uncompressed_key
+
 
 def quick_algorithm(a,b,c):  #y=a^b%c,a的b次幂余除c
     a = a % c  
@@ -65,115 +98,99 @@ def GetMoSqrt(x, p):
             return -2, -2
     else:
         return -1, -1
-
-
 def Secp256k1GetYByX(x):#y^2=x^3+7 (mod p)根据x求y
     a=(x*x*x+7)%0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
     ret = GetMoSqrt(a,0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F)
     return ret
 
-def EC_Compress(P):#点压缩P
-    y = Secp256k1GetYByX(P[0])
-    if y[0]==P[0]:
-        compressed_point = '02'+hex(P[0])[2:]
-        return compressed_point
-    elif y[0]==P[1]:
-        compressed_point = '03'+hex(P[0])[2:]
-        return compressed_point
-
-def EC_Extract(compressed_point):
-    p_hex = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F'
-    p = int(p_hex, 16)
-    x_hex = compressed_point[2:66]
-    x = int(x_hex, 16)
-    prefix = compressed_point[0:2]
-    
-    y_square = (pow(x, 3, p)  + 7) % p
-    y_square_square_root = pow(y_square, (p+1)//4, p)
-    if (prefix == "02" and y_square_square_root & 1) or (prefix == "03" and not y_square_square_root & 1):
-        y = (-y_square_square_root) % p
-    else:
-        y = y_square_square_root
-
-    computed_y_hex = format(y, '064x')
-    computed_uncompressed_key = "04" + x_hex + computed_y_hex
-
-    return computed_uncompressed_key
-    
 if __name__ == "__main__":
-    d = random.randrange(1, MyECDSA.curve.n)
-    P = MyECDSA.scalar_mult(d, MyECDSA.curve.g)
-    print('点P:',hex(P[0]),hex(P[1]))
-#EC point compression
-    g=(0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-       0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8)
-    #g_compressed = EC_Compress(g)
+    #PoC impl of ec point compression############################################################
+    print("(1) EC point compression:")
+    d = random.randrange(1, curve.n)    #private key
+    P = scalar_mult(d, curve.g) #public key
+
     P_compressed  = EC_Compress(P)
-#Compress public key into signature,extract public key from signature & verify the signature
-    computed_uncompressed_key = EC_Extract(P_compressed)
-    print('P解压缩:',computed_uncompressed_key)
-    '''p_hex = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F'
-    p = int(p_hex, 16)
-    compressed_key_hex = '0250863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B2352'
-    x_hex = compressed_key_hex[2:66]
-    x = int(x_hex, 16)
-    prefix = compressed_key_hex[0:2]
+    computed_uncompressed_key = EC_Uncompress(P_compressed)
+    
+    print('点P:',hex(P[0]),hex(P[1]))
+    print('Compress:',P_compressed)
+    print('Uncompress:',computed_uncompressed_key)
 
-    y_square = (pow(x, 3, p)  + 7) % p
-    y_square_square_root = pow(y_square, (p+1)//4, p)
-    if (prefix == "02" and y_square_square_root & 1) or (prefix == "03" and not y_square_square_root & 1):
-        y = (-y_square_square_root) % p
-    else:
-        y = y_square_square_root
+    #PoC impl of extracting public key from signature \& verify the signature####################
+    print("\n(2) extracting public key from signature & verify the signature:")
+    #d, P = make_keypair()
+    print("Private key:", hex(d))
+    print("Public key: (0x{:x}, 0x{:x})".format(*P))
+    
+    msg = b'How u doing?'
+    e = hash_message(msg)
+    
+    #signature = sign_message(d, msg)
+    k = random.randrange(1, curve.n)
+    R_x, R_y = scalar_mult(k, curve.g)
+    r = R_x % curve.n
+    s = ((e + r * d) * inverse_mod(k, curve.n)) % curve.n
 
-    computed_y_hex = format(y, '064x')
-    computed_uncompressed_key = "04" + x_hex + computed_y_hex
+    #R = (R_x, R_y)
+    y = Secp256k1GetYByX(r)
+    #print(y)
+    #print(R_y)
+    print('Message:', msg)
+    print('Signature: (0x{:x}, 0x{:x})'.format(r,s))
 
-    print(computed_uncompressed_key)'''
-
-#Schnorr Signature – Batch Verification
+    #Extracting public key from signature
+    #关键在于求 R
+    
+    R1 = (r,y[0])
+    P_guess1 = scalar_mult(inverse_mod(r,curve.n),
+                        point_add(scalar_mult(s, R1),
+                        point_neg(scalar_mult(e,curve.g))
+                                )
+                           );
+    R2 = (r,y[1])
+    P_guess2 = scalar_mult(inverse_mod(r,curve.n),
+                        point_add(scalar_mult(s, R2),
+                        point_neg(scalar_mult(e,curve.g))
+                                )
+                           );
+    print('\n-------------Extracting public key from signature---------------')
+    if P_guess1==P:
+        P_guess = P_guess1
+        print("Public key: (0x{:x}, 0x{:x})".format(*P_guess1))
+    elif P_guess2==P:
+        P_guess = P_guess2
+        print("Public key: (0x{:x}, 0x{:x})".format(*P_guess2))
+    print('Verification:', verify_signature(P_guess, msg, (r,s)))
+    
+    #Schnorr Signature - Batch Verification######################################################
     print("\n(3) Schnorr Signature - Batch Verification:")
     m1 = b'SHANDONG'
     m2 = b'QINGDAO'
-    #攻击者私钥x1和公钥P1
-    x1 = random.randrange(1, MyECDSA.curve.n)
-    P1 = MyECDSA.scalar_mult(x1, MyECDSA.curve.g)
-
-    '''k1 = random.randrange(1, MyECDSA.curve.n)
-    R = MyECDSA.scalar_mult(k1, MyECDSA.curve.g)
-    R_x = hex(R[0])[2:]
-    R_y = hex(R[1])[2:]
-    R = R_x+R_y'''
+    #攻击者私钥 x1 和公钥 P1
+    x1 = random.randrange(1, curve.n)
+    P1 = scalar_mult(x1, curve.g)
     
-    #攻击者伪造公钥为P2的签名(攻击者不知道私钥x2)
-    P2 = MyECDSA.scalar_mult(random.randrange(1, MyECDSA.curve.n), MyECDSA.curve.g)
+    #攻击者伪造公钥为 P2 的签名(攻击者不知道私钥 x2 )
+    P2 = scalar_mult(random.randrange(1, curve.n), curve.g)
 
-    #攻击者随机选择r2,s2; 并计算e2
-    r2 = random.randint(1, MyECDSA.curve.n);s2 = random.randint(1, MyECDSA.curve.n)
-    R2 = MyECDSA.scalar_mult(r2, MyECDSA.curve.g)
+    #攻击者随机选择 r2 , s2 ; 并计算 e2
+    r2 = random.randint(1, curve.n);s2 = random.randint(1, curve.n)
+    R2 = scalar_mult(r2, curve.g)
     #e2=h(P2||R2||m2)
-    e2 = MyECDSA.hash_message((hex(P2[0])[2:]+hex(P2[1])[2:]).encode('utf-8') +
+    e2 = hash_message((hex(P2[0])[2:]+hex(P2[1])[2:]).encode('utf-8') +
                               (hex(R2[0])[2:]+hex(R2[1])[2:]).encode('utf-8') +
                               m2)
 
     #攻击者设置特定的R1; 并计算e1,s1
-    R1 = MyECDSA.scalar_mult(-e2, P2)
-    e1 = MyECDSA.hash_message((hex(P1[0])[2:]+hex(P1[1])[2:]).encode('utf-8') +
+    R1 = scalar_mult(-e2, P2)
+    e1 = hash_message((hex(P1[0])[2:]+hex(P1[1])[2:]).encode('utf-8') +
                               (hex(R1[0])[2:]+hex(R1[1])[2:]).encode('utf-8') +
                               m1)
-    s1 = (r2+e1*x1-s2) % MyECDSA.curve.n
+    s1 = (r2+e1*x1-s2) % curve.n
 
 
     #(R1,s1)和(R2,s2)可以通过验证
-    e1xP1=MyECDSA.scalar_mult(e1,P1)
-    e2xP2=MyECDSA.scalar_mult(e2,P2)
-    if MyECDSA.scalar_mult(s1+s2, MyECDSA.curve.g) == MyECDSA.point_add(R1,
-                                                                        MyECDSA.point_add
-                                                                        (R2,MyECDSA.point_add
-                                                                         (e1xP1,e2xP2))):
+    e1xP1=scalar_mult(e1,P1)
+    e2xP2=scalar_mult(e2,P2)
+    if scalar_mult(s1+s2, curve.g) == point_add(R1,point_add(R2,point_add(e1xP1,e2xP2))):
         print('Success!')
-    
-
-
-
-
