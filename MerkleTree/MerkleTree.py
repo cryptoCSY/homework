@@ -13,11 +13,19 @@ def hash_node(data,hash_function = 'sha256'):#merkle树其它节点
     #print(data)
     return hash_function(data).hexdigest()
 
-lst = ['a','b','c','d','e','f','g']
+def Show_Merkle_Tree(merkle_tree,h):
+    print('Merkle Tree的高度:',h)
+    print('Merkle Tree从底至上每层节点哈希值:')
+    for i in range(h+1):
+        print('第{0}层:\n{1}\n'.format(i+1,",\n".join(merkle_tree[i])))
+    print()
+    
+#lst = ['a','b','c','d','e','f','g']
+#lst = ['a','b','c','d','e','f']
 #100k 大小测试集
-'''lst = []
+lst = []
 for i in range(100000):
-    lst.append(str(i))'''
+    lst.append(str(i))
 
 def Create_Merkle_Tree(lst,hash_function = 'sha256'):
     lst_hash = []
@@ -57,7 +65,7 @@ def Create_Merkle_Tree(lst,hash_function = 'sha256'):
 
 #构造第n个叶子节点存在性和验证
 def Audit_Proof(merkle_tree,h,n,leaf,hash_function = 'sha256'):#h为Merkle树高度，n为查找的序号
-    if n>len(merkle_tree[0]):print("节点序号有误！");return 0
+    if n>=len(merkle_tree[0]):print("节点序号有误！");return 0
     print("序号:{0}，字符:{1}\n查找路径:".format(n,leaf))
     j=0 #第j层,最底层需要计算叶子节点哈希值
     L = len(merkle_tree[0])
@@ -66,10 +74,10 @@ def Audit_Proof(merkle_tree,h,n,leaf,hash_function = 'sha256'):#h为Merkle树高
         print('第{0}层Hash值:{1}'.format(j+1,hash_value))
     elif n%2==1:
         hash_value = hash_node(merkle_tree[0][n-1]+hash_leaf(leaf),hash_function)
-        print('第{0}层查询值:{1}，生成的Hash值:{2}'.format(j+1,merkle_tree[0][n-1],hash_value))
+        print('第{0}层查询值:{1}，\n\t生成的Hash值:{2}'.format(j+1,merkle_tree[0][n-1],hash_value))
     elif n%2==0:
         hash_value = hash_node(hash_leaf(leaf)+merkle_tree[0][n+1],hash_function)
-        print('第{0}层查询值:{1}，生成的Hash值:{2}'.format(j+1,merkle_tree[0][n+1],hash_value))
+        print('第{0}层查询值:{1}，\n\t生成的Hash值:{2}'.format(j+1,merkle_tree[0][n+1],hash_value))
     n = n//2
     j += 1 
     while j<h:#查询兄弟节点哈希值，生成新哈希值
@@ -78,10 +86,10 @@ def Audit_Proof(merkle_tree,h,n,leaf,hash_function = 'sha256'):#h为Merkle树高
             print('第{0}层Hash值:{1}'.format(j+1,hash_value))
         elif n%2==1:
             hash_value = hash_node(merkle_tree[j][n-1]+hash_value,hash_function)
-            print('第{0}层查询值:{1}，生成的Hash值:{2}'.format(j+1,merkle_tree[j][n-1],hash_value))
+            print('第{0}层查询值:{1}，\n\t生成的Hash值:{2}'.format(j+1,merkle_tree[j][n-1],hash_value))
         elif n%2==0:
             hash_value = hash_node(hash_value+merkle_tree[j][n+1],hash_function)
-            print('第{0}层查询值:{1}，生成的Hash值:{2}'.format(j+1,merkle_tree[j][n+1],hash_value))
+            print('第{0}层查询值:{1}，\n\t生成的Hash值:{2}'.format(j+1,merkle_tree[j][n+1],hash_value))
         n = n//2
         j += 1
 
@@ -91,7 +99,12 @@ def Audit_Proof(merkle_tree,h,n,leaf,hash_function = 'sha256'):#h为Merkle树高
     else:print("节点%s不在Merkle树中"%leaf)
 
 merkle_tree,h = Create_Merkle_Tree(lst)
-#leaf = input('要查找的节点：')
-#p = int(input('节点序号：'))
-#Audit_Proof(merkle_tree,h,p,leaf)
-Audit_Proof(merkle_tree,h,5,'f')
+
+'''print('节点:',', '.join(lst))
+Show_Merkle_Tree(merkle_tree,h)'''
+
+leaf = input('要查找的节点：')
+p = int(input('节点序号：'))
+Audit_Proof(merkle_tree,h,p,leaf)
+#Show_Merkle_Tree(merkle_tree,h)
+#Audit_Proof(merkle_tree,h,4,'e')
