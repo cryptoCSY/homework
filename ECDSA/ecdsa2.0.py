@@ -2,12 +2,6 @@ from MyECDSA import curve,inverse_mod,is_on_curve,point_neg,point_add,scalar_mul
 import random
 import collections
 
-def intToBytes(value, length):
-    result = []
-    for i in range(0, length):
-        result.append(value >> (i * 8) & 0xff)
-    result.reverse()
-    return result
 
 if __name__ == "__main__":
 # (4) (r,s),and (r,-s), are both valid signatures
@@ -24,8 +18,7 @@ if __name__ == "__main__":
     print('Signature: (0x{:x}, 0x{:x})'.format(*signature))
     print('(r,s) Verification:', verify_signature(P, msg, signature))
 
-    r = signature[0]
-    s = signature[1]
+    r,s = signature
     s_neg = -s%curve.n
     #(r,s)通过验证，(r,-s)同样可以
     signature_forge = (r,s_neg)
@@ -40,7 +33,7 @@ if __name__ == "__main__":
     e_ = r_*u*inverse_mod(v,curve.n)
     s_ = r_*inverse_mod(v,curve.n)
     
-    #check 可以伪造出哈希值为e_的消息签名
+    #Check 可以伪造出哈希值为e_的消息签名
     w = inverse_mod(s_, curve.n)
     u1 = (e_ * w) % curve.n
     u2 = (r_ * w) % curve.n
@@ -69,14 +62,9 @@ if __name__ == "__main__":
     #print(R_x,R_y,R)
     
     e2 = hash_message(R.encode('utf-8')+m)
-    s2 = (k+e2*d)%curve.p
+    s2 = (k+e2*d)%curve.n
 
-    s1 = ((e1 + r1 * d1) * inverse_mod(s2-e2*d1, curve.p)) % curve.p
-    d_guess = (s1*s2-e1)*inverse_mod(s1*e2+r1,curve.p)%curve.p
+    s1 = ((e1 + r1 * d1) * inverse_mod(s2-e2*d1, curve.n)) % curve.n
+    d_guess = (s1*s2-e1)*inverse_mod(s1*e2+r1,curve.n)%curve.n
     if d_guess == d1:
         print('Success!')
-
-    
-
-    
-    
